@@ -287,7 +287,8 @@ export class NatsServer implements PortInfo {
       // need a server name for a cluster
       const serverName = nuid.next();
       // customize the store dir and make it
-      jetstream.store_dir = path.join("/tmp", "jetstream", serverName);
+      const tmproot = Deno.makeTempDirSync();
+      jetstream.store_dir = path.join(tmproot, "jetstream", serverName);
       Deno.mkdirSync(jetstream.store_dir, { recursive: true });
 
       config = extend(
