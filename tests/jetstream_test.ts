@@ -2899,3 +2899,68 @@ Deno.test("jetstream - bind example", async () => {
 
   await cleanup(ns, nc);
 });
+
+Deno.test("jetstream - test events stream", async () => {
+  const { ns, nc } = await setup(jetstreamServerConf({}, true));
+  const js = nc.jetstream();
+  const jsm = await nc.jetstreamManager();
+  await jsm.streams.add({
+    name: "events",
+    subjects: ["events.>"],
+  });
+
+  const sub = await js.subscribe("events.>", {
+    stream: "events",
+    config: {
+      ack_policy: AckPolicy.Explicit,
+      deliver_policy: DeliverPolicy.All,
+      deliver_subject: "foo",
+      durable_name: "me",
+      filter_subject: "events.>",
+    },
+    callbackFn: (err: NatsError | null, msg: JsMsg | null) => {
+      console.log(msg?.subject);
+      msg?.ack();
+    },
+  });
+
+  await js.publish("events.a");
+  await js.publish("events.b");
+  await delay(2000);
+  await cleanup(ns, nc);
+});
+
+Deno.test("jetstream - sub set error", async () => {
+  const { ns, nc } = await setup(jetstreamServerConf({}, true));
+  const js = nc.jetstream();
+  const jsm = await nc.jetstreamManager();
+  await jsm.streams.add({
+    name: "events",
+    subjects: ["events.>"],
+  });
+
+  const opts = consumerOpts();
+  opts.durable("me");
+  opts.manualAck();
+  opts.ackExplicit();
+
+  const sub = await js.pullSubscribe("events.>", opts);
+
+  (async () => {
+    for await (const m of sub) {
+      console.log("\n", m.subject);
+      m.ack();
+    }
+  })();
+
+  await js.publish("events.a");
+  await js.publish("events.b");
+
+  sub.pull({ batch: 10, expires: 2000 });
+
+  const ci = await jsm.consumers.info("events", "me");
+  console.log(ci);
+
+  await delay(3000);
+  await cleanup(ns, nc);
+});

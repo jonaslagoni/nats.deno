@@ -487,8 +487,13 @@ export class NatsServer implements PortInfo {
     conf.port = conf.port || -1;
     conf.http = conf.http || "127.0.0.1:-1";
 
-    const confFile = await Deno.makeTempFileSync();
-    await Deno.writeFile(confFile, new TextEncoder().encode(toConf(conf)));
+    let confFile = ""
+    try {
+      confFile = await Deno.makeTempFileSync();
+      await Deno.writeFile(confFile, new TextEncoder().encode(toConf(conf)));
+    } catch(err) {
+      throw new Error(`failed to create ${confFile}: ${err.message}\n${err.stack}`);
+    }
     if (debug) {
       console.info(`${exe} -c ${confFile}`);
     }
