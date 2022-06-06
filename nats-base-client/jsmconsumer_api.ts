@@ -111,12 +111,7 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
   get(stream: string, name: string): Promise<Consumer> {
     return this.info(stream, name)
       .then((ci) => {
-        if (typeof ci.config.deliver_subject === "string") {
-          return Promise.reject(
-            new Error("consumer configuration is not a pull consumer"),
-          );
-        }
-        return Promise.resolve(new ConsumerImpl(this, { stream, name }));
+        return Promise.resolve(new ConsumerImpl(this, ci));
       });
   }
 }

@@ -890,17 +890,17 @@ export interface ExportedConsumer {
    *
    * @return a Promise to a JsMsg iterator or a JetStreamReader
    */
-  // read(
-  //   opts: Partial<
-  //     {
-  //       inflight_limit: Partial<{
-  //         bytes: number;
-  //         messages: number;
-  //       }>;
-  //       callback: (m: JsMsg) => void;
-  //     }
-  //   >,
-  // ): Promise<AsyncIterable<JsMsg> | JetStreamReader>;
+  read(
+    opts?: Partial<
+      {
+        inflight_limit: Partial<{
+          bytes: number;
+          messages: number;
+        }>;
+        callback: (m: JsMsg) => void;
+      }
+    >,
+  ): Promise<QueuedIterator<JsMsg> | JetStreamReader>;
 }
 
 export interface Consumer extends ExportedConsumer {
