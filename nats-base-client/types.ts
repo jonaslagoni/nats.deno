@@ -446,6 +446,8 @@ export interface ConsumerAPI {
   ): Promise<ConsumerInfo>;
   delete(stream: string, consumer: string): Promise<boolean>;
   list(stream: string): Lister<ConsumerInfo>;
+
+  get(stream: string, name: string): Promise<Consumer>;
 }
 
 export type StreamInfoRequestOptions = {
@@ -857,9 +859,52 @@ export interface ConsumerUpdateConfig {
   "backoff"?: Nanos[];
 }
 
-export interface Consumer {
-  "stream_name": string;
-  config: ConsumerConfig;
+export interface JetStreamReader {
+  /**
+   * Request the StreamReader to stop.
+   * @return the `closed` promise
+   */
+  stop(): Promise<null | NatsError>;
+
+  /**
+   * A Promise that resolves to null if the reader
+   * closed normaly or to an error if the reader closed
+   * due to an error
+   */
+  closed: Promise<null | NatsError>;
+}
+
+export interface ExportedConsumer {
+  /**
+   * Retrieve the next message for the consumer
+   * @param opts - how long to keep the request open and wait for a response
+   * @return a Promise that resolves to a JsMsg or null if no messages available
+   */
+  next(opts?: Partial<{ expires: number }>): Promise<JsMsg>;
+
+  /**
+   * Read messages available to the Consumer
+   * @param opts - limits on how many messages or bytes should be buffered
+   * an optional callback, if no iterator is desired.
+   * an optional statusHandler, reporting on status/notifications from the consumer
+   *
+   * @return a Promise to a JsMsg iterator or a JetStreamReader
+   */
+  // read(
+  //   opts: Partial<
+  //     {
+  //       inflight_limit: Partial<{
+  //         bytes: number;
+  //         messages: number;
+  //       }>;
+  //       callback: (m: JsMsg) => void;
+  //     }
+  //   >,
+  // ): Promise<AsyncIterable<JsMsg> | JetStreamReader>;
+}
+
+export interface Consumer extends ExportedConsumer {
+  info(): Promise<ConsumerInfo>;
 }
 
 export interface StreamNames {

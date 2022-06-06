@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 import {
+  Consumer,
   ConsumerAPI,
   ConsumerConfig,
   ConsumerInfo,
@@ -27,6 +28,7 @@ import {
 import { BaseApiClient } from "./jsbaseclient_api.ts";
 import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
 import { validateDurableName, validateStreamName } from "./jsutil.ts";
+import { ConsumerImpl } from "./consumer.ts";
 
 export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
   constructor(nc: NatsConnection, opts?: JetStreamOptions) {
@@ -104,5 +106,17 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     };
     const subj = `${this.prefix}.CONSUMER.LIST.${stream}`;
     return new ListerImpl<ConsumerInfo>(subj, filter, this);
+  }
+
+  get(stream: string, name: string): Promise<Consumer> {
+    return this.info(stream, name)
+      .then((ci) => {
+        if (typeof ci.config.deliver_subject === "string") {
+          return Promise.reject(
+            new Error("consumer configuration is not a pull consumer"),
+          );
+        }
+        return Promise.resolve(new ConsumerImpl(this, { stream, name }));
+      });
   }
 }
