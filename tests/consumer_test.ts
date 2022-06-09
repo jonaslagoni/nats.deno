@@ -11,10 +11,12 @@ import {
   deferred,
   DeliverPolicy,
   JsMsg,
+  nuid,
 } from "../nats-base-client/mod.ts";
 import { assert } from "../nats-base-client/denobuffer.ts";
 import { assertRejects } from "https://deno.land/std@0.125.0/testing/asserts.ts";
 import { QueuedIterator } from "../nats-base-client/queued_iterator.ts";
+import { connect } from "../src/mod.ts";
 
 Deno.test("consumer - create", async () => {
   const { ns, nc } = await setup(jetstreamServerConf({}, true));
@@ -204,4 +206,97 @@ Deno.test("consumer - read pull", async () => {
   assertEquals(m.length, 10);
 
   await cleanup(ns, nc);
+});
+
+Deno.test("consumer - exported consumer", async () => {
+  const stream = nuid.next();
+  const durable = `dur_${nuid.next()}`;
+
+  const template = {
+    accounts: {
+      JS: {
+        jetstream: "enabled",
+        users: [{ user: "service", password: "service" }],
+        exports: [
+          {
+            service: `$JS.API.CONSUMER.MSG.NEXT.${stream}.${durable}`,
+            response: "stream",
+            // accounts: ["A"],
+          },
+          {
+            service: `$JS.ACK.${stream}.${durable}.>`,
+            // accounts: ["A"],
+          },
+        ],
+      },
+      A: {
+        users: [{ user: "a", password: "a" }],
+        imports: [
+          {
+            service: {
+              subject: `$JS.API.CONSUMER.MSG.NEXT.${stream}.${durable}`,
+              account: "JS",
+            },
+            to: "next",
+          },
+          {
+            service: {
+              subject: `$JS.ACK.${stream}.${durable}.>`,
+              account: "JS",
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  const { ns, nc } = await setup(jetstreamServerConf(template, true), {
+    user: "service",
+    pass: "service",
+  });
+
+  const srv = { jsm: await nc.jetstreamManager(), js: nc.jetstream() };
+
+  await srv.jsm.streams.add({ name: stream, subjects: ["data.>"] });
+  await srv.jsm.consumers.add(stream, {
+    durable_name: durable,
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  const client = await connect({ port: ns.port, user: "a", pass: "a" });
+  const js = client.jetstream();
+  const ec = js.exportedConsumer("next");
+  //
+  // await assertRejects(
+  //   async () => {
+  //     await ec.next();
+  //   },
+  //   Error,
+  //   "no messages",
+  // );
+
+  for (let i = 0; i < 10; i++) {
+    await srv.js.publish("data.a");
+  }
+
+  // const m = await ec.next();
+  // assertExists(m);
+  // assertEquals(m.subject, "data.a");
+  // m.ack();
+
+  //@ts-ignore: test
+  client.options.debug = true;
+  const iter = await ec.read() as QueuedIterator<JsMsg>;
+  const done = (async () => {
+    for await (const m of iter) {
+      m.ack();
+      // if (m.seq === 10) {
+      //   break;
+      // }
+    }
+  })();
+
+  await done;
+
+  await cleanup(ns, nc, client);
 });

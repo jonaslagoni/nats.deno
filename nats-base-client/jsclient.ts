@@ -13,7 +13,13 @@
  * limitations under the License.
  */
 
-import type { ConsumerOptsBuilder, KV, KvOptions, Views } from "./types.ts";
+import type {
+  ConsumerOptsBuilder,
+  ExportedConsumer,
+  KV,
+  KvOptions,
+  Views,
+} from "./types.ts";
 import {
   AckPolicy,
   ConsumerAPI,
@@ -70,6 +76,7 @@ import { headers } from "./headers.ts";
 import { consumerOpts, isConsumerOptsBuilder } from "./jsconsumeropts.ts";
 import { Bucket } from "./kv.ts";
 import { NatsConnectionImpl } from "./nats.ts";
+import { ExportedConsumerImpl } from "./consumer.ts";
 
 export interface JetStreamSubscriptionInfoable {
   info: JetStreamSubscriptionInfo | null;
@@ -107,6 +114,10 @@ export class JetStreamClientImpl extends BaseApiClient
 
   get views(): Views {
     return new ViewsImpl(this);
+  }
+
+  exportedConsumer(subj: string): ExportedConsumer {
+    return new ExportedConsumerImpl(this.nc, subj);
   }
 
   async publish(

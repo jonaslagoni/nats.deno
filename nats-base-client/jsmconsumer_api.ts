@@ -20,6 +20,7 @@ import {
   ConsumerListResponse,
   ConsumerUpdateConfig,
   CreateConsumerRequest,
+  ExportedConsumer,
   JetStreamOptions,
   Lister,
   NatsConnection,
@@ -28,7 +29,7 @@ import {
 import { BaseApiClient } from "./jsbaseclient_api.ts";
 import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
 import { validateDurableName, validateStreamName } from "./jsutil.ts";
-import { ConsumerImpl } from "./consumer.ts";
+import { ConsumerImpl, ExportedConsumerImpl } from "./consumer.ts";
 
 export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
   constructor(nc: NatsConnection, opts?: JetStreamOptions) {
@@ -113,5 +114,9 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       .then((ci) => {
         return Promise.resolve(new ConsumerImpl(this, ci));
       });
+  }
+
+  exportedConsumer(subject: string): ExportedConsumer {
+    return new ExportedConsumerImpl(this.nc, subject);
   }
 }

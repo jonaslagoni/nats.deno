@@ -342,6 +342,8 @@ export interface JetStreamClient {
     opts: ConsumerOptsBuilder | Partial<ConsumerOpts>,
   ): Promise<JetStreamSubscription>;
   views: Views;
+
+  exportedConsumer(subject: string): ExportedConsumer;
 }
 
 export interface ConsumerOpts {
@@ -448,6 +450,7 @@ export interface ConsumerAPI {
   list(stream: string): Lister<ConsumerInfo>;
 
   get(stream: string, name: string): Promise<Consumer>;
+  exportedConsumer(subject: string): ExportedConsumer;
 }
 
 export type StreamInfoRequestOptions = {
