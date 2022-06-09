@@ -84,7 +84,7 @@ export class ExportedConsumerImpl implements ExportedConsumer {
 
     // clean the timer up when the iterator closes
     const cleanup = () => {
-      if(timer > 0) {
+      if (timer > 0) {
         clearTimeout(timer);
       }
     };
@@ -101,8 +101,8 @@ export class ExportedConsumerImpl implements ExportedConsumer {
     // and initialize the guard to do a check slightly after
     // the pull is supposed to expire
     const fn = () => {
-      if(timer > 0) {
-        clearTimeout(timer)
+      if (timer > 0) {
+        clearTimeout(timer);
       }
       last = Date.now();
       this.nc.publish(this.subject, payload, { reply: inbox });
