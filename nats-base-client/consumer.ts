@@ -48,19 +48,19 @@ export class ExportedConsumerImpl implements ExportedConsumer {
   }
 
   read(
-    _opts?: Partial<
+    opts: Partial<
       {
         inflight_limit: Partial<{ bytes: number; messages: number }>;
         callback: (m: JsMsg) => void;
       }
-    >,
+    > = {},
   ): Promise<QueuedIterator<JsMsg> | JetStreamReader> {
+    const limits = opts.inflight_limit || {};
+    const batch = limits.messages || 10;
+
     const qi = new QueuedIteratorImpl<JsMsg>();
     const inbox = createInbox();
     const to = 5000;
-    // FIXME: there's some issue, the server is not sending
-    //   more than one message with greater batches
-    const batch = 1;
     const payload = jc.encode({
       expires: nanos(to),
       batch,
@@ -144,6 +144,9 @@ export class ExportedConsumerImpl implements ExportedConsumer {
             fn();
           }
         },
+      });
+      sub.closed.then(() => {
+        console.log("sub closed");
       });
     } catch (err) {
       qi.stop(err);
@@ -230,7 +233,7 @@ export class ConsumerImpl implements Consumer {
     (async () => {
       while (!done) {
         const iter = js.fetch(this.ci.stream_name, this.ci.name, {
-          batch: 10,
+          batch: 1,
           expires: 250,
         });
         for await (const m of iter) {

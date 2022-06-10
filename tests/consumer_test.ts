@@ -10,13 +10,17 @@ import {
   createInbox,
   deferred,
   DeliverPolicy,
+  Empty,
   JsMsg,
   nuid,
+  StringCodec,
 } from "../nats-base-client/mod.ts";
 import { assert } from "../nats-base-client/denobuffer.ts";
 import { assertRejects } from "https://deno.land/std@0.125.0/testing/asserts.ts";
 import { QueuedIterator } from "../nats-base-client/queued_iterator.ts";
 import { connect } from "../src/mod.ts";
+import { delay } from "../nats-base-client/util.ts";
+import { assertExists } from "https://deno.land/std@0.75.0/testing/asserts.ts";
 
 Deno.test("consumer - create", async () => {
   const { ns, nc } = await setup(jetstreamServerConf({}, true));
@@ -261,38 +265,40 @@ Deno.test("consumer - exported consumer", async () => {
   await srv.jsm.consumers.add(stream, {
     durable_name: durable,
     ack_policy: AckPolicy.Explicit,
+    deliver_policy: DeliverPolicy.All,
   });
 
   const client = await connect({ port: ns.port, user: "a", pass: "a" });
   const js = client.jetstream();
   const ec = js.exportedConsumer("next");
-  //
-  // await assertRejects(
-  //   async () => {
-  //     await ec.next();
-  //   },
-  //   Error,
-  //   "no messages",
-  // );
 
+  await assertRejects(
+    async () => {
+      await ec.next();
+    },
+    Error,
+    "no messages",
+  );
+
+  const sc = StringCodec();
   for (let i = 0; i < 10; i++) {
-    await srv.js.publish("data.a");
+    await srv.js.publish(`data.a`, sc.encode(`${i}`));
   }
 
-  // const m = await ec.next();
-  // assertExists(m);
-  // assertEquals(m.subject, "data.a");
-  // m.ack();
+  const m = await ec.next();
+  assertExists(m);
+  assertEquals(m.subject, "data.a");
+  m.ack();
 
-  //@ts-ignore: test
-  client.options.debug = true;
-  const iter = await ec.read() as QueuedIterator<JsMsg>;
+  const iter = await ec.read({
+    inflight_limit: { messages: 2 },
+  }) as QueuedIterator<JsMsg>;
   const done = (async () => {
     for await (const m of iter) {
       m.ack();
-      // if (m.seq === 10) {
-      //   break;
-      // }
+      if (m.seq === 10) {
+        break;
+      }
     }
   })();
 
